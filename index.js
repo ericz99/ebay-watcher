@@ -1,0 +1,194 @@
+const request = require("request-promise");
+const logger = require("./lib/logger");
+const cheerio = require("cheerio");
+const fs = require("fs");
+const readline = require("readline");
+
+// readline interface
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
+
+// stores proxies
+const formattedProxies = [];
+
+// auto exe this function
+const formatProxy = (() => {
+  var text = fs.readFileSync("./proxies.txt", "utf-8");
+  var textFormat = text.split("\r\n");
+
+  for (let i = 0; i < textFormat.length; i++) {
+    textFormat[i].replace(" ", "_");
+    var splitProxy = textFormat[i].split(":");
+    if (splitProxy.length > 3) {
+      formattedProxies.push(
+        "http://" +
+          splitProxy[2] +
+          ":" +
+          splitProxy[3] +
+          "@" +
+          splitProxy[0] +
+          ":" +
+          splitProxy[1]
+      );
+    } else {
+      formattedProxies.push("https://" + splitProxy[0] + ":" + splitProxy[1]);
+    }
+  }
+})();
+
+const genEmail = domain => {
+  return Math.floor(Math.random() * 100000000000) + domain;
+};
+
+class Watcher {
+  constructor(url, domain, counter) {
+    this.url = url;
+    this.domain = genEmail(domain);
+    this.jar = request.jar();
+    this.headers = {
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.113 Safari/537.36"
+    };
+
+    this.counter = counter;
+    this.log = logger("Ebay Watcher!", this.counter);
+    this.proxies = formattedProxies;
+    this.request = request.defaults({
+      jar: this.jar
+    });
+  }
+
+  async init() {
+    try {
+      await this.register();
+
+      await this.watch();
+    } catch (err) {
+      if (err) this.log.green(err, "ERROR");
+    }
+  }
+
+  async register() {
+    this.log.yellow(`Registering account => ${this.domain}`);
+
+    const payload = {
+      isSug: "false",
+      countryId: "1",
+      userid: "",
+      ru: "http://www.ebay.com",
+      firstname: "Nyan",
+      lastname: "Cat",
+      email: this.domain,
+      PASSWORD: "123lol",
+      promotion: "true",
+      iframeMigration1: "true",
+      mode: "1",
+      frmaction: "submit",
+      tagInfo:
+        "ht5%3DAQAAAWZGrHELAAUxNjY3M2ZkMmQ2MC5hYjYxYzViLjUyMDgxLmZmZmYyZDA1sjnQk2i5lR84eqtuuGdh9wTIDo8*%7Cht5new%3Dfalse%26usid%3Dcd34ca381670ab677351b2dcffedb59e",
+      hmvb: "",
+      isGuest: "0",
+      idlstate: "",
+      profilePicture: "",
+      agreement: "Terms and conditions",
+      signInUrl:
+        "https%3A%2F%2Fsignin.ebay.com%2Fws%2FeBayISAPI.dll%3FSignIn%26regUrl%3Dhttps%253A%252F%252Freg.ebay.com%252Freg%252FPartialReg%253Fru%253D",
+      personalFlag: "true",
+      isMobilePhone: "",
+      _trksid: "p2052190",
+      ets: "AQADAAAAEJH_eIxnp1G7IJST3WkbHBg"
+    };
+
+    let opts = {
+      uri: "https://reg.ebay.com/reg/PartialReg",
+      form: payload,
+      method: "POST",
+      resolveWithFullResponse: true,
+      simple: false
+    };
+
+    const res = await this._makeRequest(opts);
+
+    if (res.statusCode == 302) {
+      return this.log.green(
+        "Successfully registered & logged in under email => " + this.domain
+      );
+    }
+  }
+
+  async watch() {
+    let opts = {
+      uri: this.url,
+      method: "GET",
+      resolveWithFullResponse: true
+    };
+
+    const res = await this._makeRequest(opts);
+
+    if (res.statusCode == 200) {
+      this.log.green("Grabbing watch link...");
+      const $ = cheerio.load(res.body);
+      const watchUrl = $("#vi-atl-lnk > a").attr("href");
+
+      let opts = {
+        uri: watchUrl,
+        method: "GET",
+        resolveWithFullResponse: true
+      };
+
+      const secondRes = await this._makeRequest(opts);
+
+      if (secondRes.statusCode == 200) {
+        this.log.green("Successfully watched URL: " + this.url);
+      } else {
+        this.log.red(secondRes.statusCode);
+      }
+    } else {
+      this.log.red(res.statusCode);
+    }
+  }
+
+  async _makeRequest(options) {
+    options.method = options.method || "GET";
+
+    let headers = this.headers;
+
+    let settings = {
+      ...options,
+      uri: options.uri,
+      method: options.method,
+      headers
+    };
+
+    if (options.form) settings.form = options.form;
+
+    return await this.request(settings);
+  }
+}
+
+let i = 0;
+
+function _init() {
+  rl.question("Enter Product Link: ", answer => {
+    let url = answer;
+    rl.question("Enter watch number: ", answer => {
+      let entries = parseInt(answer);
+
+      var thread = setInterval(function() {
+        const watch = new Watcher(url, "@ericcarts.club", i++);
+
+        watch.init();
+        if (i === entries) {
+          clearInterval(thread);
+          process.exit(1);
+        }
+      }, 2000);
+    });
+  });
+}
+
+// RUN _INIT()
+
+_init();
