@@ -173,19 +173,22 @@ let i = 0;
 function _init() {
   rl.question("Enter Product Link: ", answer => {
     let url = answer;
-    rl.question("Enter watch number: ", answer => {
-      let entries = parseInt(answer);
+    rl.question(
+      "Enter Watch Number (MAX: 20 TO AVOID BAN/ABUSE!): ",
+      answer => {
+        let entries = parseInt(answer);
 
-      var thread = setInterval(function() {
-        const watch = new Watcher(url, "@ericcarts.club", i++);
+        var thread = setInterval(function() {
+          /* new instance baby */
+          new Watcher(url, "@ericcarts.club", i++).init();
 
-        watch.init();
-        if (i === entries) {
-          clearInterval(thread);
-          process.exit(1);
-        }
-      }, 2000);
-    });
+          if (i === entries) {
+            clearInterval(thread);
+            process.exit(1);
+          }
+        }, 2000);
+      }
+    );
   });
 }
 
