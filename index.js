@@ -178,15 +178,18 @@ function _init() {
       answer => {
         let entries = parseInt(answer);
 
-        var thread = setInterval(function() {
-          /* new instance baby */
-          new Watcher(url, "@ericcarts.club", i++).init();
+        rl.question("Enter your domain: ", answer => {
+          let domain = answer;
+          var thread = setInterval(function() {
+            /* new instance baby */
+            new Watcher(url, domain, i++).init();
 
-          if (i === entries) {
-            clearInterval(thread);
-            process.exit(1);
-          }
-        }, 2000);
+            if (i === entries) {
+              clearInterval(thread);
+              process.exit(1);
+            }
+          }, 2000);
+        });
       }
     );
   });
