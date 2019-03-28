@@ -6,4 +6,4 @@
 
 ## Disclaimer
 
-- Please do not abuse this wisely script, any abused from this script will result in banned by Ebay. This is meant for only to be used for educational purpose.
+- Please do not abuse this script, any abused from this script will result in banned by Ebay. This is meant for only to be used for educational purpose.
