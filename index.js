@@ -3,6 +3,7 @@ const logger = require("./lib/logger");
 const cheerio = require("cheerio");
 const fs = require("fs");
 const readline = require("readline");
+const async = require('async');
 
 // readline interface
 const rl = readline.createInterface({
@@ -24,13 +25,13 @@ const formatProxy = (() => {
     if (splitProxy.length > 3) {
       formattedProxies.push(
         "http://" +
-          splitProxy[2] +
-          ":" +
-          splitProxy[3] +
-          "@" +
-          splitProxy[0] +
-          ":" +
-          splitProxy[1]
+        splitProxy[2] +
+        ":" +
+        splitProxy[3] +
+        "@" +
+        splitProxy[0] +
+        ":" +
+        splitProxy[1]
       );
     } else {
       formattedProxies.push("https://" + splitProxy[0] + ":" + splitProxy[1]);
@@ -49,14 +50,20 @@ class Watcher {
     this.jar = request.jar();
     this.headers = {
       "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.113 Safari/537.36"
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.113 Safari/537.36",
+      'Upgrade-Insecure-Requests': 1,
+      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3',
+      'Accept-Encoding': 'gzip, deflate, br',
+      "Accept-Language": "en-US,en;q=0.9",
     };
 
+    this.status = "";
     this.counter = counter;
     this.log = logger("Ebay Watcher!", this.counter);
     this.proxies = formattedProxies;
     this.request = request.defaults({
-      jar: this.jar
+      jar: this.jar,
+      gzip: true
     });
   }
 
@@ -87,18 +94,18 @@ class Watcher {
       mode: "1",
       frmaction: "submit",
       tagInfo:
-        "ht5%3DAQAAAWZGrHELAAUxNjY3M2ZkMmQ2MC5hYjYxYzViLjUyMDgxLmZmZmYyZDA1sjnQk2i5lR84eqtuuGdh9wTIDo8*%7Cht5new%3Dfalse%26usid%3Dcd34ca381670ab677351b2dcffedb59e",
+        "ht5%3DAQAAAW0dnqDpAAUxNmQyMjIzZmI0NC5hZDNkNzk1LjE1OTRiLmZmZmFkNjdmvf2AghJ2FvO1c4faa0I5XbCkdKA*%7Cht5new%3Dfalse%26usid%3D2224625d16d0aa12dc5219c5fffa8c3a",
       hmvb: "",
       isGuest: "0",
       idlstate: "",
       profilePicture: "",
       agreement: "Terms and conditions",
       signInUrl:
-        "https%3A%2F%2Fsignin.ebay.com%2Fws%2FeBayISAPI.dll%3FSignIn%26regUrl%3Dhttps%253A%252F%252Freg.ebay.com%252Freg%252FPartialReg%253Fru%253D",
+        "https%3A%2F%2Fsignin.ebay.com%2Fws%2FeBayISAPI.dll%3FSignIn%26regUrl%3Dhttps%253A%252F%252Freg.ebay.com%252Freg%252FPartialReg",
       personalFlag: "true",
       isMobilePhone: "",
       _trksid: "p2052190",
-      ets: "AQADAAAAEJH_eIxnp1G7IJST3WkbHBg"
+      ets: "AQAEAAAAEIFrMmHMzbIBuKwnQ7oS9WM"
     };
 
     let opts = {
@@ -142,6 +149,8 @@ class Watcher {
 
       if (secondRes.statusCode == 200) {
         this.log.green("Successfully watched URL: " + this.url);
+        this.status = "done";
+        return true;
       } else {
         this.log.red(secondRes.statusCode);
       }
@@ -168,27 +177,22 @@ class Watcher {
   }
 }
 
-let i = 0;
-
 function _init() {
+  let counter = 0;
+
   rl.question("Enter Product Link: ", answer => {
     let url = answer;
     rl.question(
       "Enter Watch Number (MAX: 20 TO AVOID BAN/ABUSE!): ",
       answer => {
         let entries = parseInt(answer);
-
         rl.question("Enter your domain: ", answer => {
           let domain = answer;
-          var thread = setInterval(function() {
-            /* new instance baby */
-            new Watcher(url, domain, i++).init();
-
-            if (i === entries) {
-              clearInterval(thread);
-              process.exit(1);
-            }
-          }, 2000);
+          let threads = [];
+          for (let i = 0; i < entries; i++) {
+            threads.push(new Watcher(url, domain, counter++));
+            async.parallel(threads[i].init());
+          }
         });
       }
     );
