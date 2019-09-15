@@ -1,4 +1,6 @@
-## Ebay Watcher
+## Ebay Watcher - DON'T WORK
+
+script doesn't work anymore, gonna update this later when I have time. 
 
 ## Instruction
 
